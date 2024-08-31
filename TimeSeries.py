@@ -60,12 +60,15 @@ class TimeSeries:
             timeCol         = renameDict[ timeColumn ] if timeColumn in list( renameDict.keys( ) ) else timeColumn
             if trimDimensionsOfInterest:
                 df          = df[ list( renameDict.values( ) ) ]
+            isTZAware       = pd.api.types.is_datetime64tz_dtype( df[ renameDict[timeCol] ] )
+            if not isTZAware:
+                df[ renameDict[timeCol] ]       = df[ renameDict[timeCol] ].dt.tz_localize( 'UTC' )
         else:
             if labelColumn is not None: df=df.rename( {labelColumn:self.WELL_ACTIVITY_COLUMN},axis=1 )
         if deleteNans: 
             if not nanPlaceHolder is None:
                 for col in list( df.columns ):
-                    df[ col ]          = np.where( df[ col ]==nanPlaceHolder,np.nan,df[ col ] )
+                    df[ col ]                   = np.where( df[ col ]==nanPlaceHolder,np.nan,df[ col ] )
             nansPerCols     = list( df.isna( ).sum( ) )
             colMiss         = list( df.columns )[ np.argmax( nansPerCols ) ]
             maxPerc         = 100*(max( nansPerCols ))/df.shape[ 0 ]
@@ -250,15 +253,16 @@ class TimeSeries:
                     if selectedRectangle is not None:
                             selectedRectangle[ 0 ].set_alpha( alpha )
                             selectedRectangle   = None
-                    if abs(event.xdata - x0) < selectionTol:  
+                    if abs(event.xdata - x0) < selectionTol:       
                         selectedRectangle       = (rect, 'left',j)
                         break
-                    elif abs(event.xdata - (x0 + width)) < selectionTol: 
+                    elif abs(event.xdata - (x0 + width)) < selectionTol:   #selectionTol
                         selectedRectangle       = (rect, 'right',j)
                         break
                     elif event.xdata>x0 and event.xdata<(x0+width):                        
                         selectedRectangle       = ( rect, 'sel',j )
                         rect.set_alpha( selectionAlpha )      
+                        break
                 if selectedRectangle is not None:   currentAct                      =   existingActs[  selectedRectangle[2]  ]
 
         def onMotion(event):
@@ -410,20 +414,22 @@ class TimeSeries:
 
             if not ( dataExcerpt[ self.WELL_ACTIVITY_COLUMN ].values==None ).all( ):
                 preAnno                 = dataExcerpt[ self.WELL_ACTIVITY_COLUMN ].values
-                preAnno                 = np.where( preAnno==None,0,preAnno )
+                preAnno                 = np.where( preAnno==None,-1,preAnno )
                 preAnnoDiff             = np.diff( preAnno )
                 idxChanges              = np.argwhere( preAnnoDiff!=0 )
+                if idxChanges.shape[ 0 ]==0:
+                    idxChanges          = np.append( idxChanges,preAnno.shape[ 0 ]//2 )
                 initialXMin             = xminPlot
                 for k,chPoint in np.ndenumerate( idxChanges ):
                     thisAct             = preAnno[ chPoint ]
-                    if thisAct!=0:
+                    if thisAct!=-1:
                         thisColor           = colorDict[ thisAct ]
                         delta               = date2num( dataExcerpt[ self.timeCol ].iloc[ chPoint ] ) - initialXMin
                         rectangles.append( Rectangle( ( initialXMin,yMinBuff ),delta,yHeightBuff ,color=thisColor,alpha=alpha ) )
                         existingActs.append( thisAct )
                     initialXMin             = date2num( dataExcerpt[ self.timeCol ].iloc[ chPoint ] ) if self.timeCol is not None else chPoint
                     if chPoint==idxChanges[-1] and chPoint<preAnnoDiff.size-1:
-                        if preAnno[ chPoint+1 ]!=0:
+                        if preAnno[ chPoint+1 ]!=-1:
                             thisAct             = preAnno[ chPoint+1 ]
                             thisColor           = colorDict[ thisAct ]
                             finalXMax           = xmaxGlobal if self.timeCol is None else date2num( xmaxGlobal )

@@ -1,2 +1,5 @@
 out.csv
 tests.ipynb
+__pycache__
+dfz_status_08.csv
+renameDict_prod.json
