@@ -60,7 +60,7 @@ class TimeSeries:
             timeCol         = renameDict[ timeColumn ] if timeColumn in list( renameDict.keys( ) ) else timeColumn
             if trimDimensionsOfInterest:
                 df          = df[ list( renameDict.values( ) ) ]
-            isTZAware       = pd.api.types.is_datetime64tz_dtype( df[ renameDict[timeCol] ] )
+            isTZAware       = pd.api.types.is_datetime64tz_dtype( df[ timeCol ] )
             if not isTZAware:
                 df[ renameDict[timeCol] ]       = df[ renameDict[timeCol] ].dt.tz_localize( 'UTC' )
         else:

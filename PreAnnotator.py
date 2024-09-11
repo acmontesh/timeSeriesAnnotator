@@ -32,3 +32,4 @@ class PreAnnotator:
         inProcessData[ labelCol ]           =   states
         print(f"Finished rig state update. A total of {len(states)} states were added to the DF, which in turn, has {inProcessData.shape[0]} rows")
         return inProcessData
+    
