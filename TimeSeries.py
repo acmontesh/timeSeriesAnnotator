@@ -6,6 +6,7 @@ Abraham C. Montes  - RAPID, UT Austin.
 class TimeSeries:
 
     WELL_ACTIVITY_COLUMN        = "Activity"
+    TEMP_FILE_CUM_PERSISTANCE   = "backup_labeled_dataframe.csv"
 
     def __init__( self,pathCSV,dataframe=None,preAnnotator=None,renameDimensionsJSON=None,trimDimensionsOfInterest=False,timeColumn='index',
                  timeAxisFormat="ISO8601",unitsRow=True,deleteNans=True,nanPlaceHolder=-999.25,labelColumn=None ):
@@ -57,7 +58,10 @@ class TimeSeries:
             renameDict      = self._processJson( renameDimensionsJSON )
             if labelColumn is not None: renameDict[ labelColumn ] = self.WELL_ACTIVITY_COLUMN
             df              = df.rename( renameDict,axis=1 )
-            timeCol         = renameDict[ timeColumn ] if timeColumn in list( renameDict.keys( ) ) else timeColumn
+            if not isinstance( timeColumn,list ):
+                timeCol     = renameDict[ timeColumn ] if timeColumn in list( renameDict.keys( ) ) else timeColumn
+            else:
+                timeCol     = '_'.join( timeColumn )
             if trimDimensionsOfInterest:
                 df          = df[ list( renameDict.values( ) ) ]
             isTZAware       = pd.api.types.is_datetime64tz_dtype( df[ timeCol ] )
@@ -175,7 +179,7 @@ class TimeSeries:
         ax.set_xlabel( "Time/Index" )
         ax.set_facecolor( background )
 
-    def annotate( self,hoursPerPlot=4,rangeIdxPerPlot=1000,figWidth=15,figHeight=8,activityCodes=None,**kwargs ):
+    def annotate( self,hoursPerPlot=4,rangeIdxPerPlot=1000,figWidth=15,figHeight=8,activityCodes=None,cumulativePersistance=True,**kwargs ):
         """
         Allows the interactive annotation of the time series object
         inputs:
@@ -184,6 +188,8 @@ class TimeSeries:
         - figWidth, figHeight: Size of the figure in inches. 
         - activityCodes: List of activity codes to have in the activity "brush" palette (i.e., the ones that will be available to annotate the data).
                         Default is None. If set to None, it will simply use the pre-existing annotations (e.g., the ones assigned by the preAnnotator).
+        - cumulativePersistance: Defines whether the dataframe is continously persisted on the disk each time a new time interval is labeled.
+                                *** Is it highly recommended to keep this as True.
         *Acceptable kwargs: palette,background,lineWidth,alpha,selectionAlpha,plotFont,tickLabelsSize,axisLabelsSize,rotationXLabels,timeFormat,tickLength,yAxisWidth
         WARNING: This function requires using the Qt matplotlib backend. To activate it, ensure you properly install PyQt5 through 'pip install PyQt5' and use the magic command '%matplotlib qt' before calling this function.
         """
@@ -472,5 +478,7 @@ class TimeSeries:
                     self.data[ self.WELL_ACTIVITY_COLUMN ]  =   np.where( (self.data[self.timeCol]>=x0) & (self.data[self.timeCol]<xmax),thisAct,self.data[ self.WELL_ACTIVITY_COLUMN ] )
                 else:
                     self.data[ self.WELL_ACTIVITY_COLUMN ].iloc[ x0:xmax ]   =   thisAct
+            bufferDataFrame             = self.data[ (self.data[self.timeCol]<xmaxGlobal) ]
+            bufferDataFrame.to_csv( self.TEMP_FILE_CUM_PERSISTANCE,index=False )
             xminGlobal                  = xmaxGlobal
             xmaxGlobal                  = xminGlobal+rangeIdxPerPlot if self.timeCol is None else xminGlobal+dt.timedelta( hours=hoursPerPlot )
